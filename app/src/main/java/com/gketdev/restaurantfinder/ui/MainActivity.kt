@@ -1,7 +1,8 @@
-package com.gketdev.restaurantfinder
+package com.gketdev.restaurantfinder.ui
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import com.gketdev.restaurantfinder.R
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
