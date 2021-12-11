@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.gketdev.restaurantfinder.R
 import com.gketdev.restaurantfinder.base.BaseFragment
 import com.gketdev.restaurantfinder.data.Restaurant
@@ -43,6 +44,8 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
     private val viewModel: HomeViewModel by viewModels()
 
     private var markers = mutableMapOf<String, Marker>()
+
+    private var restaurantDatas = listOf<Restaurant>()
 
     override fun initViewBinding(
         inflater: LayoutInflater,
@@ -137,6 +140,7 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
     }
 
     private fun markRestaurants(restaurants: List<Restaurant>) {
+        restaurantDatas = restaurants
         restaurants.forEach {
             markerGenerator(it)
         }
@@ -159,7 +163,20 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
         }
 
         googleMap.addMarker(markerOptions)?.let {
+            it.tag = restaurant.fsqId
             markers[restaurant.fsqId] = it
+        }
+
+        googleMap.setOnMarkerClickListener { marker ->
+            val selectedRestaurant = restaurantDatas.find { it.fsqId == marker.tag }
+            val action =
+                selectedRestaurant?.let {
+                    HomeFragmentDirections.actionHomeFragmentToDetailFragment(
+                        it
+                    )
+                }
+            action?.let { findNavController().navigate(it) }
+            true
         }
     }
 
@@ -183,6 +200,7 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
         cameraListener()
 
         googleMap.addMarker(markerOptions)
+
     }
 
     private fun cameraListener() {
@@ -190,5 +208,6 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
             viewModel.setBound(googleMap.projection.visibleRegion.latLngBounds)
         }
     }
+
 
 }

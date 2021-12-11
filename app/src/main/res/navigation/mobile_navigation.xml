@@ -13,9 +13,12 @@
 
     </fragment>
 
-    <fragment
+    <dialog
         android:id="@+id/detailFragment"
         android:name="com.gketdev.restaurantfinder.ui.detail.DetailFragment">
-    </fragment>
+        <argument
+            android:name="restaurantDetail"
+            app:argType="com.gketdev.restaurantfinder.data.Restaurant" />
+    </dialog>
 
 </navigation>
