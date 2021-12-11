@@ -8,20 +8,27 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import com.gketdev.restaurantfinder.R
 import com.gketdev.restaurantfinder.base.BaseFragment
+import com.gketdev.restaurantfinder.data.Restaurant
 import com.gketdev.restaurantfinder.databinding.FragmentHomeBinding
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.*
+import com.google.android.gms.tasks.CancellationTokenSource
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collect
 
+@AndroidEntryPoint
 class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
 
     private val requiredPermissions = arrayOf(
@@ -33,6 +40,9 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
 
     private var userLocation: LatLng = LatLng(0.0, 0.0)
 
+    private val viewModel: HomeViewModel by viewModels()
+
+    private var markers = mutableMapOf<String, Marker>()
 
     override fun initViewBinding(
         inflater: LayoutInflater,
@@ -45,6 +55,7 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         checkPermission()
+        onObserver()
         binding?.mapView?.getMapAsync(this)
         binding?.mapView?.onCreate(savedInstanceState)
     }
@@ -81,8 +92,6 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
                 fusedLocationClient =
                     LocationServices.getFusedLocationProviderClient(requireContext())
                 locationListener()
-            } else {
-                //TODO Dialog or toast message
             }
         }
 
@@ -102,11 +111,56 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
 
     @SuppressLint("MissingPermission")
     private fun locationListener() {
-        fusedLocationClient.lastLocation
+        fusedLocationClient.getCurrentLocation(
+            LocationRequest.PRIORITY_HIGH_ACCURACY,
+            CancellationTokenSource().token
+        )
             .addOnSuccessListener { location: Location? ->
                 userLocation = LatLng(location?.latitude ?: 0.0, location?.longitude ?: 0.0)
                 showLocationInMap()
             }
+    }
+
+    private fun onObserver() {
+        lifecycleScope.launchWhenCreated {
+            viewModel.viewState.collect {
+                when (it) {
+                    is HomeViewState.Restaurants -> markRestaurants(it.list)
+                    is HomeViewState.Error -> Toast.makeText(
+                        requireContext(),
+                        it.error.toString(),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun markRestaurants(restaurants: List<Restaurant>) {
+        restaurants.forEach {
+            markerGenerator(it)
+        }
+    }
+
+    private fun markerGenerator(restaurant: Restaurant) {
+        if (markers.containsKey(restaurant.fsqId)) {
+            return
+        }
+        val markerOptions = MarkerOptions().apply {
+            position(
+                LatLng(
+                    (restaurant.geocodes.main.latitude),
+                    (restaurant.geocodes.main.longitude)
+                )
+            )
+            icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+            title(restaurant.name)
+            anchor(0.5f, 0.5f)
+        }
+
+        googleMap.addMarker(markerOptions)?.let {
+            markers[restaurant.fsqId] = it
+        }
     }
 
     private fun showLocationInMap() {
@@ -122,12 +176,19 @@ class HomeFragment : BaseFragment<FragmentHomeBinding>(), OnMapReadyCallback {
 
         googleMap.animateCamera(
             CameraUpdateFactory.newLatLngZoom(
-                userLocation, 20f
+                userLocation, 15f
             )
         )
+
+        cameraListener()
 
         googleMap.addMarker(markerOptions)
     }
 
+    private fun cameraListener() {
+        googleMap.setOnCameraIdleListener {
+            viewModel.setBound(googleMap.projection.visibleRegion.latLngBounds)
+        }
+    }
 
 }
