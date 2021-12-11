@@ -1,5 +1,6 @@
 package com.gketdev.restaurantfinder.source
 
+import androidx.annotation.VisibleForTesting
 import com.gketdev.restaurantfinder.data.DataResultState
 import com.gketdev.restaurantfinder.data.Restaurant
 import kotlinx.coroutines.flow.Flow
@@ -10,6 +11,7 @@ import javax.inject.Singleton
 @Singleton
 class LocalDataSource @Inject constructor() {
 
+    @VisibleForTesting
     private val data = mutableSetOf<Restaurant>()
 
     fun getRestaurants(
